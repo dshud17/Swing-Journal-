@@ -1,0 +1,578 @@
+Done! Ab Exit Notes ka alag box hai jo sirf tab dikhega jab aap exit confirm karoge. Aap exit ke baad additional notes daal sakte ho (jaise "Why I exited", "Market condition", "Lessons learned").
+
+Yeh raha final version with Exit Notes:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Swing Trading Journal | Exit Notes • Dark Mode • Max 3 Stocks</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Inter', 'Roboto', sans-serif;
+            transition: background-color 0.2s ease, border-color 0.2s, color 0.1s;
+        }
+
+        :root {
+            --bg-body: #0a0c10;
+            --bg-card: #14171c;
+            --card-border: #2d3138;
+            --text-primary: #eef2ff;
+            --text-secondary: #9ca3af;
+            --input-bg: #1f2229;
+            --input-border: #3a3f4a;
+            --input-focus: #3b82f6;
+            --table-header: #1a1d24;
+            --table-border: #2a2e36;
+            --profit: #34d399;
+            --loss: #f87171;
+            --btn-primary: #3b82f6;
+            --btn-primary-hover: #2563eb;
+            --btn-dark: #2d3138;
+            --btn-dark-hover: #3f4550;
+            --btn-exit: #8b5cf6;
+            --btn-exit-hover: #7c3aed;
+            --active-row-bg: #1e293b;
+            --metric-bg: #1e2128;
+        }
+
+        body {
+            background: var(--bg-body);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-primary);
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        h1 {
+            font-size: 1.9rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #c084fc, #60a5fa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 0.2rem;
+        }
+        .sub {
+            color: var(--text-secondary);
+            border-left: 4px solid #3b82f6;
+            padding-left: 14px;
+            margin-bottom: 28px;
+        }
+        .card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 20px 24px;
+            margin-bottom: 28px;
+            border: 1px solid var(--card-border);
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 18px 22px;
+            align-items: end;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .input-group label {
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+        input, select, textarea {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 14px;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+            outline: none;
+            color: var(--text-primary);
+        }
+        select option { background: var(--input-bg); color: var(--text-primary); }
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--input-focus);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
+        }
+        button {
+            background: var(--btn-dark);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        button:hover { background: var(--btn-dark-hover); transform: scale(0.97); }
+        .btn-primary { background: var(--btn-primary); }
+        .btn-primary:hover { background: var(--btn-primary-hover); }
+        .btn-exit { background: var(--btn-exit); }
+        .btn-exit:hover { background: var(--btn-exit-hover); }
+        .delete-btn { background: none; border: none; color: var(--loss); cursor: pointer; font-size: 1.2rem; padding: 4px 8px; }
+        .delete-btn:hover { background: rgba(248,113,113,0.1); transform: none; }
+        .active-limit {
+            background: #1e3a8a;
+            color: #bfdbfe;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-weight: 600;
+        }
+        .exit-panel {
+            background: var(--metric-bg);
+            border-radius: 20px;
+            padding: 16px 20px;
+            margin-top: 12px;
+            border: 1px solid var(--card-border);
+        }
+        .exit-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-end;
+        }
+        .exit-controls .input-group { flex: 1; min-width: 160px; }
+        .exit-controls .input-group:first-child { flex: 2; }
+        .exit-notes-group { margin-top: 16px; }
+        .table-wrapper { overflow-x: auto; border-radius: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        th {
+            background: var(--table-header);
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            color: var(--text-secondary);
+        }
+        td { padding: 12px 8px; border-bottom: 1px solid var(--table-border); vertical-align: middle; }
+        .profit { color: var(--profit); font-weight: 700; }
+        .loss { color: var(--loss); font-weight: 700; }
+        .active-row { background-color: var(--active-row-bg); border-left: 3px solid #f59e0b; }
+        .metrics-dashboard { display: flex; flex-wrap: wrap; gap: 18px; justify-content: space-between; }
+        .metric-card {
+            background: var(--metric-bg);
+            border-radius: 20px;
+            padding: 12px 18px;
+            flex: 1;
+            min-width: 130px;
+            text-align: center;
+            border: 1px solid var(--card-border);
+        }
+        .metric-label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary); }
+        .metric-value { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+        canvas { max-height: 320px; width: 100%; }
+        .small-note { font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+        .theme-switch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--input-bg);
+            padding: 6px 14px;
+            border-radius: 40px;
+            border: 1px solid var(--input-border);
+        }
+        .toggle-btn {
+            background: var(--btn-dark);
+            width: 44px;
+            height: 24px;
+            border-radius: 30px;
+            display: inline-block;
+            position: relative;
+            cursor: pointer;
+        }
+        .toggle-btn span {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        body.light .toggle-btn span { left: 20px; }
+        .notes-preview { max-width: 180px; white-space: normal; word-break: break-word; font-size: 0.75rem; }
+        @media (max-width: 700px) { .metric-value { font-size: 1.2rem; } .card { padding: 16px; } }
+    </style>
+</head>
+<body class="dark">
+<div class="container">
+    <div class="flex-between">
+        <div>
+            <h1>📈 Swing Trading Journal</h1>
+            <div class="sub">Exit Notes • Max 3 Active • Auto Charges • Holding Days</div>
+        </div>
+        <div class="theme-switch">
+            <span class="switch-label">🌙</span>
+            <div class="toggle-btn" id="themeToggle"><span></span></div>
+            <span class="switch-label">☀️</span>
+        </div>
+    </div>
+
+    <!-- ADD NEW TRADE -->
+    <div class="card">
+        <div class="flex-between">
+            <h3 style="margin:0;">✍️ Add New Trade</h3>
+            <div class="active-limit" id="activeCountDisplay">📊 Active: 0 / 3</div>
+        </div>
+        <div class="form-grid">
+            <div class="input-group"><label>📅 Entry Date</label><input type="date" id="entryDate" required></div>
+            <div class="input-group"><label>🏷️ Stock Name</label><input type="text" id="stockName" placeholder="RELIANCE, TCS" required></div>
+            <div class="input-group"><label>🔢 Quantity</label><input type="number" id="quantity" value="100" step="1" required></div>
+            <div class="input-group"><label>💰 Entry Price (₹)</label><input type="number" id="entryPrice" step="0.01" value="1000" required></div>
+            <div class="input-group"><label>🛑 Stop Loss (₹)</label><input type="number" id="stopLoss" step="0.01" placeholder="Optional"></div>
+            <div class="input-group"><label>📝 Entry Notes</label><textarea id="notes" rows="1" placeholder="Setup / Reasoning"></textarea></div>
+            <div class="input-group"><label>&nbsp;</label><button class="btn-primary" id="addBtn">➕ Add Trade</button></div>
+        </div>
+        <div class="small-note">⚠️ Max 3 active stocks. Charges: Brokerage 0% | STT 0.10% | Exchange 0.00297% | SEBI 0.0001% | GST 18% | Stamp Duty 0.015% (buy) | DP ₹15.34 (sell).</div>
+    </div>
+
+    <!-- EXIT WITH NOTES SECTION -->
+    <div class="card">
+        <h3 style="margin-top:0;">🚪 Exit Open Trade (Select from Active Holdings)</h3>
+        <div class="exit-panel">
+            <div class="exit-controls">
+                <div class="input-group">
+                    <label>📋 Select Active Trade to Exit</label>
+                    <select id="exitTradeSelect">
+                        <option value="">-- No active trades --</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>💰 Exit Price (₹)</label>
+                    <input type="number" id="exitPriceInput" step="0.01" placeholder="Enter exit price">
+                </div>
+                <div class="input-group">
+                    <label>📆 Exit Date</label>
+                    <input type="date" id="exitDateInput">
+                </div>
+            </div>
+            <div class="exit-notes-group input-group">
+                <label>📝 Exit Notes (Why exited? Market condition? Learnings?)</label>
+                <textarea id="exitNotesInput" rows="2" placeholder="Example: Hit stop loss due to news, or: Target achieved, momentum slowed, etc."></textarea>
+            </div>
+            <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+                <button class="btn-exit" id="confirmExitBtn">✅ Confirm Exit with Notes</button>
+            </div>
+            <div class="small-note" style="margin-top:12px;">👉 Exit notes will be appended to the trade's notes section with [EXIT NOTE]: prefix.</div>
+        </div>
+    </div>
+
+    <!-- METRICS + CHART -->
+    <div class="card">
+        <h3>📊 Key Metrics & Equity Curve</h3>
+        <div class="metrics-dashboard">
+            <div class="metric-card"><div class="metric-label">Total Net P&L</div><div class="metric-value" id="totalPnL">₹0</div></div>
+            <div class="metric-card"><div class="metric-label">Win Rate</div><div class="metric-value" id="winRate">0%</div></div>
+            <div class="metric-card"><div class="metric-label">Avg Win</div><div class="metric-value" id="avgWin">₹0</div></div>
+            <div class="metric-card"><div class="metric-label">Avg Loss</div><div class="metric-value" id="avgLoss">₹0</div></div>
+            <div class="metric-card"><div class="metric-label">Profit Factor</div><div class="metric-value" id="profitFactor">-</div></div>
+            <div class="metric-card"><div class="metric-label">Avg Holding Days</div><div class="metric-value" id="avgHoldingDays">-</div></div>
+            <div class="metric-card"><div class="metric-label">Max Drawdown</div><div class="metric-value" id="maxDrawdown">₹0</div></div>
+            <div class="metric-card"><div class="metric-label">Closed Trades</div><div class="metric-value" id="closedCount">0</div></div>
+        </div>
+        <canvas id="equityChart" width="800" height="300" style="max-height: 320px; margin-top: 18px;"></canvas>
+    </div>
+
+    <!-- TRADES TABLE -->
+    <div class="card">
+        <div class="flex-between">
+            <h3 style="margin:0;">📋 Trade Journal</h3>
+            <button id="exportCSVBtn" style="background:#334155;">📎 Export CSV</button>
+        </div>
+        <div class="table-wrapper">
+            <table id="tradesTable">
+                <thead>
+                    <tr><th>Entry Date</th><th>Stock</th><th>Qty</th><th>Entry</th><th>Exit</th><th>Exit Date</th><th>Holding Days</th><th>SL</th><th>Charges</th><th>P&L</th><th>Notes</th><th>Action</th></tr>
+                </thead>
+                <tbody id="tradesBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // CHARGE CONFIGURATION
+    const BROKERAGE_PERCENT = 0;
+    const STT_BUY_PERCENT = 0.10;
+    const STT_SELL_PERCENT = 0.10;
+    const EXCHANGE_TX_PERCENT = 0.00297;
+    const SEBI_PERCENT = 0.0001;
+    const GST_PERCENT = 18;
+    const STAMP_DUTY_BUY_PERCENT = 0.015;
+    const DP_CHARGES_SELL_FIXED = 15.34;
+
+    function calculateCharges(quantity, entryPrice, exitPrice, isClosed) {
+        let buyValue = quantity * entryPrice;
+        let sellValue = isClosed ? quantity * exitPrice : 0;
+        let brokerage = 0;
+        let sttBuy = buyValue * (STT_BUY_PERCENT / 100);
+        let sttSell = isClosed ? sellValue * (STT_SELL_PERCENT / 100) : 0;
+        let totalSTT = sttBuy + sttSell;
+        let totalTurnover = buyValue + (isClosed ? sellValue : 0);
+        let exchangeTx = totalTurnover * (EXCHANGE_TX_PERCENT / 100);
+        let sebiCharges = totalTurnover * (SEBI_PERCENT / 100);
+        let gstBase = brokerage + exchangeTx + sebiCharges;
+        let gst = gstBase * (GST_PERCENT / 100);
+        let stampDuty = buyValue * (STAMP_DUTY_BUY_PERCENT / 100);
+        let dpCharges = (isClosed && exitPrice !== null) ? DP_CHARGES_SELL_FIXED : 0;
+        return parseFloat((brokerage + totalSTT + exchangeTx + sebiCharges + gst + stampDuty + dpCharges).toFixed(2));
+    }
+
+    function calculatePnL(quantity, entryPrice, exitPrice, charges) {
+        if (!exitPrice) return null;
+        return parseFloat(((exitPrice - entryPrice) * quantity - charges).toFixed(2));
+    }
+
+    function getHoldingDays(entryDateStr, exitDateStr) {
+        if (!entryDateStr || !exitDateStr) return null;
+        const start = new Date(entryDateStr), end = new Date(exitDateStr);
+        if (isNaN(start) || isNaN(end)) return null;
+        return Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+    }
+
+    let trades = [];
+
+    function getActiveTrades() { return trades.filter(t => !t.exitPrice || t.exitPrice === "" || t.exitPrice === null); }
+    function getActiveTradeCount() { return getActiveTrades().length; }
+
+    function computeTradeFields(trade) {
+        let isClosed = (trade.exitPrice && trade.exitPrice !== "" && trade.exitPrice !== null);
+        let charges = calculateCharges(trade.quantity, trade.entryPrice, isClosed ? trade.exitPrice : null, isClosed);
+        let netPnL = isClosed ? calculatePnL(trade.quantity, trade.entryPrice, trade.exitPrice, charges) : null;
+        let holdingDays = (isClosed && trade.exitDate) ? getHoldingDays(trade.entryDate, trade.exitDate) : null;
+        return { charges, netPnL, isClosed, holdingDays };
+    }
+
+    function addTradeToMemory(trade) { trades.push(trade); saveToLocalStorage(); renderAll(); }
+    function deleteTrade(id) { trades = trades.filter(t => t.id !== id); saveToLocalStorage(); renderAll(); }
+
+    // Exit trade with notes
+    function exitTrade(tradeId, exitPrice, exitDate, exitNote) {
+        const tradeIndex = trades.findIndex(t => t.id === tradeId);
+        if (tradeIndex === -1) return false;
+        if (!exitPrice || exitPrice <= 0) { alert("Please enter valid exit price"); return false; }
+        if (!exitDate) { alert("Please select exit date"); return false; }
+        
+        trades[tradeIndex].exitPrice = parseFloat(exitPrice);
+        trades[tradeIndex].exitDate = exitDate;
+        
+        // Append exit note to existing notes
+        if (exitNote && exitNote.trim() !== "") {
+            const existingNotes = trades[tradeIndex].notes || "";
+            const exitNoteFormatted = `[EXIT NOTE: ${exitNote.trim()}]`;
+            trades[tradeIndex].notes = existingNotes ? `${existingNotes} | ${exitNoteFormatted}` : exitNoteFormatted;
+        }
+        
+        saveToLocalStorage();
+        renderAll();
+        return true;
+    }
+
+    function updateExitDropdown() {
+        const select = document.getElementById('exitTradeSelect');
+        const activeTrades = getActiveTrades();
+        if (activeTrades.length === 0) {
+            select.innerHTML = '<option value="">-- No active trades --</option>';
+            return;
+        }
+        select.innerHTML = '<option value="">-- Select trade to exit --</option>' + 
+            activeTrades.map(t => `<option value="${t.id}">${t.stockName} | Qty:${t.quantity} | Entry:₹${t.entryPrice} | Entry Date:${t.entryDate}</option>`).join('');
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tradesBody');
+        tbody.innerHTML = '';
+        const activeCount = getActiveTradeCount();
+        document.getElementById('activeCountDisplay').innerHTML = `📊 Active: ${activeCount} / 3 ${activeCount >= 3 ? '⚠️' : ''}`;
+        updateExitDropdown();
+        
+        trades.forEach(trade => {
+            const { charges, netPnL, isClosed, holdingDays } = computeTradeFields(trade);
+            const row = tbody.insertRow();
+            if (!isClosed) row.classList.add('active-row');
+            row.insertCell(0).innerText = trade.entryDate || '-';
+            row.insertCell(1).innerText = trade.stockName;
+            row.insertCell(2).innerText = trade.quantity;
+            row.insertCell(3).innerText = `₹${Number(trade.entryPrice).toFixed(2)}`;
+            row.insertCell(4).innerHTML = (trade.exitPrice && isClosed) ? `₹${Number(trade.exitPrice).toFixed(2)}` : '<span style="color:#f59e0b;">🔴 Active</span>';
+            row.insertCell(5).innerText = (trade.exitDate && isClosed) ? trade.exitDate : '-';
+            row.insertCell(6).innerText = (holdingDays !== null) ? `${holdingDays}d` : '-';
+            row.insertCell(7).innerText = trade.stopLoss ? `₹${Number(trade.stopLoss).toFixed(2)}` : '-';
+            row.insertCell(8).innerText = `₹${charges.toFixed(2)}`;
+            const pnlCell = row.insertCell(9);
+            if (isClosed && netPnL !== null) {
+                pnlCell.innerText = `₹${netPnL.toFixed(2)}`;
+                pnlCell.className = netPnL >= 0 ? 'profit' : 'loss';
+            } else pnlCell.innerText = '—';
+            
+            const notesCell = row.insertCell(10);
+            notesCell.className = 'notes-preview';
+            notesCell.innerText = trade.notes || '';
+            
+            const actionCell = row.insertCell(11);
+            const delBtn = document.createElement('button');
+            delBtn.innerText = '🗑️';
+            delBtn.className = 'delete-btn';
+            delBtn.onclick = () => deleteTrade(trade.id);
+            actionCell.appendChild(delBtn);
+        });
+    }
+
+    function computeMetrics() {
+        let closedTrades = trades.filter(t => t.exitPrice && t.exitPrice !== "").map(t => {
+            const { netPnL, holdingDays } = computeTradeFields(t);
+            return { netPnL: netPnL || 0, holdingDays };
+        });
+        let totalPnL = closedTrades.reduce((s, t) => s + t.netPnL, 0);
+        let winning = closedTrades.filter(t => t.netPnL > 0);
+        let losing = closedTrades.filter(t => t.netPnL < 0);
+        let winRate = closedTrades.length ? (winning.length / closedTrades.length) * 100 : 0;
+        let avgWin = winning.length ? winning.reduce((s, t) => s + t.netPnL, 0) / winning.length : 0;
+        let avgLoss = losing.length ? Math.abs(losing.reduce((s, t) => s + t.netPnL, 0) / losing.length) : 0;
+        let grossProfit = winning.reduce((s, t) => s + t.netPnL, 0);
+        let grossLoss = Math.abs(losing.reduce((s, t) => s + t.netPnL, 0));
+        let profitFactor = grossLoss === 0 ? (grossProfit > 0 ? Infinity : 0) : grossProfit / grossLoss;
+        let validHoldDays = closedTrades.filter(t => t.holdingDays !== null).map(t => t.holdingDays);
+        let avgHoldingDays = validHoldDays.length ? (validHoldDays.reduce((a,b)=>a+b,0)/validHoldDays.length).toFixed(1) : '-';
+        let equityCurve = buildEquityCurveSequence();
+        let maxDrawdown = 0, peak = -Infinity;
+        for (let val of equityCurve) { if (val > peak) peak = val; let dd = peak - val; if (dd > maxDrawdown) maxDrawdown = dd; }
+        return { totalPnL, winRate, avgWin, avgLoss, profitFactor: profitFactor === Infinity ? '∞' : profitFactor.toFixed(2), avgHoldingDays, maxDrawdown, closedCount: closedTrades.length };
+    }
+
+    function buildEquityCurveSequence() {
+        let closed = trades.filter(t => t.exitPrice && t.exitPrice !== "").map(t => {
+            const { netPnL } = computeTradeFields(t);
+            return { date: t.exitDate || t.entryDate, pnl: netPnL || 0 };
+        }).sort((a,b) => new Date(a.date) - new Date(b.date));
+        let cumulative = 0, curve = [0];
+        for (let t of closed) { cumulative += t.pnl; curve.push(cumulative); }
+        return curve;
+    }
+
+    let chartInstance = null;
+    function updateMetricsAndChart() {
+        let m = computeMetrics();
+        document.getElementById('totalPnL').innerHTML = `₹${m.totalPnL.toFixed(2)}`;
+        document.getElementById('winRate').innerHTML = `${m.winRate.toFixed(1)}%`;
+        document.getElementById('avgWin').innerHTML = `₹${m.avgWin.toFixed(2)}`;
+        document.getElementById('avgLoss').innerHTML = `₹${m.avgLoss.toFixed(2)}`;
+        document.getElementById('profitFactor').innerHTML = m.profitFactor;
+        document.getElementById('avgHoldingDays').innerHTML = m.avgHoldingDays !== '-' ? `${m.avgHoldingDays} days` : '-';
+        document.getElementById('maxDrawdown').innerHTML = `₹${m.maxDrawdown.toFixed(2)}`;
+        document.getElementById('closedCount').innerHTML = m.closedCount;
+        const curve = buildEquityCurveSequence();
+        const ctx = document.getElementById('equityChart').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+        const isDark = document.body.classList.contains('dark');
+        const textColor = isDark ? '#eef2ff' : '#1f2937';
+        const gridColor = isDark ? '#2d3138' : '#e2e8f0';
+        chartInstance = new Chart(ctx, { 
+            type: 'line', data: { labels: curve.map((_,i)=> i===0?'Start':`T${i}`), datasets: [{ label: 'Equity Curve (₹)', data: curve, borderColor: '#3b82f6', backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.05)', fill: true, tension: 0.2 }] }, 
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: textColor } }, tooltip: { callbacks: { label: (ctx) => `₹${ctx.raw.toFixed(2)}` } } }, scales: { y: { grid: { color: gridColor }, ticks: { color: textColor } }, x: { grid: { color: gridColor }, ticks: { color: textColor } } } } 
+        });
+    }
+
+    function renderAll() { renderTable(); updateMetricsAndChart(); }
+    function saveToLocalStorage() { localStorage.setItem('swingJournalTradesV5', JSON.stringify(trades)); }
+    function loadFromLocalStorage() {
+        let stored = localStorage.getItem('swingJournalTradesV5');
+        if (stored) trades = JSON.parse(stored);
+        else {
+            trades = [
+                { id: Date.now()+1, entryDate: '2026-05-20', stockName: 'HDFCBANK', quantity: 50, entryPrice: 1650, stopLoss: 1620, exitPrice: null, exitDate: null, notes: 'Active - holding' },
+                { id: Date.now()+2, entryDate: '2026-05-25', stockName: 'RELIANCE', quantity: 30, entryPrice: 2450, stopLoss: 2420, exitPrice: null, exitDate: null, notes: 'Active - swing long' },
+                { id: Date.now()+3, entryDate: '2026-05-22', stockName: 'TATAMOTORS', quantity: 100, entryPrice: 890, stopLoss: 875, exitPrice: null, exitDate: null, notes: 'Active - breakout' }
+            ];
+            saveToLocalStorage();
+        }
+        renderAll();
+    }
+
+    function getFormTrade() {
+        let entryDate = document.getElementById('entryDate').value;
+        let stockName = document.getElementById('stockName').value.trim();
+        let quantity = parseFloat(document.getElementById('quantity').value);
+        let entryPrice = parseFloat(document.getElementById('entryPrice').value);
+        let stopLossVal = document.getElementById('stopLoss').value;
+        let stopLoss = stopLossVal ? parseFloat(stopLossVal) : null;
+        let notes = document.getElementById('notes').value;
+        if (!entryDate || !stockName || isNaN(quantity) || isNaN(entryPrice) || quantity<=0 || entryPrice<=0) {
+            alert("Please fill required fields: Entry Date, Stock Name, Quantity (>0), Entry Price (>0)");
+            return null;
+        }
+        let currentActive = getActiveTradeCount();
+        if (currentActive >= 3) {
+            alert(`⚠️ Cannot add more than 3 active stocks! You have ${currentActive} open positions. Use "Exit Open Trade" section to close one first.`);
+            return null;
+        }
+        return { id: Date.now(), entryDate, stockName, quantity, entryPrice, stopLoss, exitPrice: null, exitDate: null, notes };
+    }
+
+    function initTheme() {
+        const savedTheme = localStorage.getItem('journalTheme');
+        if (savedTheme === 'light') { document.body.classList.remove('dark'); document.body.classList.add('light'); }
+        else { document.body.classList.add('dark'); document.body.classList.remove('light'); }
+        if (chartInstance) updateMetricsAndChart();
+    }
+    
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        if (document.body.classList.contains('dark')) { document.body.classList.remove('dark'); document.body.classList.add('light'); localStorage.setItem('journalTheme', 'light'); }
+        else { document.body.classList.remove('light'); document.body.classList.add('dark'); localStorage.setItem('journalTheme', 'dark'); }
+        updateMetricsAndChart();
+    });
+
+    document.getElementById('addBtn').addEventListener('click', () => {
+        let newTrade = getFormTrade();
+        if (newTrade) { addTradeToMemory(newTrade); document.getElementById('notes').value = ''; document.getElementById('stopLoss').value = ''; }
+    });
+    
+    document.getElementById('confirmExitBtn').addEventListener('click', () => {
+        const select = document.getElementById('exitTradeSelect');
+        const tradeId = select.value;
+        if (!tradeId) { alert("Please select an active trade from dropdown"); return; }
+        const exitPrice = document.getElementById('exitPriceInput').value;
+        const exitDate = document.getElementById('exitDateInput').value;
+        const exitNote = document.getElementById('exitNotesInput').value;
+        if (!exitPrice || !exitDate) { alert("Please enter both Exit Price and Exit Date"); return; }
+        if (exitPrice <= 0) { alert("Exit price must be positive"); return; }
+        exitTrade(parseInt(tradeId), exitPrice, exitDate, exitNote);
+        document.getElementById('exitPriceInput').value = '';
+        document.getElementById('exitDateInput').value = '';
+        document.getElementById('exitNotesInput').value = '';
+        select.value = '';
+    });
+
+    document.getElementById('exportCSVBtn').addEventListener('click', () => {
+        let csvRows = [["ID","Entry Date","Stock","Quantity","Entry Price","Exit Price","Exit Date","Holding Days","Stop Loss","Charges","Net P&L","Notes"]];
+        trades.forEach(t => {
+            let { charges, netPnL, isClosed, holdingDays } = computeTradeFields(t);
+            csvRows.push([t.id, t.entryDate, t.stockName, t.quantity, t.entryPrice, t.exitPrice || 'ACTIVE', t.exitDate || '', holdingDays !== null ? holdingDays : '', t.stopLoss || '', charges, isClosed ? netPnL : 'OPEN', t.notes || '']);
+        });
+        let csvContent = csvRows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+        let blob = new Blob([csvContent], {type: "text/csv"}), a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = `swing_journal_${new Date().toISOString().slice(0,19)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+    });
+    
+    document.getElementById('entryDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('exitDateInput').value = new Date().toISOString().slice(0,10);
+    loadFromLocalStorage();
+    initTheme();
+</script>
+</body>
+</html>
+```
